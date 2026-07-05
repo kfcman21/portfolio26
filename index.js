@@ -1,25 +1,25 @@
 /**
  * ==========================================================================
- * 📂 VibeCoding Portfolio - Javascript Core (Firebase Integrated)
+ * 📂 VibeCoding Portfolio - Javascript Core (Firebase Config Updated)
  * --------------------------------------------------------------------------
  * 이 파일은 Firebase를 연동하여 포트폴리오 데이터를 불러오고 관리자 로그인을 처리합니다.
  * 
  * 💡 [보안 및 설정 가이드]
- * 1. 상단의 firebaseConfig 객체에 사용자의 Firebase 프로젝트 설정 정보를 기입하세요.
- * 2. Firebase와 연동되기 전에는 로컬 백업 데이터가 작동하여 화면 깨짐을 방지합니다.
- * 3. 관리자 로그인 후 화면 상단의 [Firestore 데이터 초기 셋업] 버튼을 누르면
+ * 1. 사용자의 실제 SciBit Firebase 프로젝트 설정 키가 정상적으로 기입되었습니다.
+ * 2. 관리자 로그인 후 화면 상단의 [Firestore 데이터 초기 셋업] 버튼을 누르면
  *    12종의 초기 프로젝트 데이터가 사용자의 Firestore DB에 자동으로 즉시 적재됩니다.
  * ==========================================================================
  */
 
-// 1. 🔥 Firebase 프로젝트 설정 정보 (사용자의 키값으로 교체해 주세요!)
+// 1. 🔥 Firebase 프로젝트 설정 정보 (실제 SciBit 프로젝트 연동 완료)
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyDRlGgmzwT8nVUXg82Kd60rumBrmMRzn10",
+    authDomain: "scibit-7359f.firebaseapp.com",
+    projectId: "scibit-7359f",
+    storageBucket: "scibit-7359f.firebasestorage.app",
+    messagingSenderId: "251134120206",
+    appId: "1:251134120206:web:c53305635aaaa6fc50c75f",
+    measurementId: "G-JY5E4PNVJ3"
 };
 
 let db = null;
@@ -208,7 +208,6 @@ const adminEditStatus = document.getElementById("admin-edit-status");
 
 // 4. 🗄️ Firestore로부터 프로젝트 데이터 조회 함수
 async function fetchProjects() {
-    // Firebase가 초기화되지 않았거나 연결이 불가능하면 백업 데이터 사용
     if (!db) {
         console.warn("Firebase가 연결되지 않았습니다. 로컬 백업 데이터를 사용합니다.");
         projects = [...localBackupProjects];
@@ -238,7 +237,6 @@ async function fetchProjects() {
             }));
             console.log("Firestore로부터 데이터를 정상적으로 불러왔습니다.");
         } else {
-            // Firestore 컬렉션이 비어있는 상태
             console.log("Firestore 컬렉션이 비어있습니다. 백업 데이터를 노출합니다.");
             projects = [...localBackupProjects];
         }
@@ -391,7 +389,6 @@ loginForm.addEventListener("submit", async (e) => {
     }
     
     try {
-        // Firebase Auth 로그인 요청
         const userCredential = await auth.signInWithEmailAndPassword(email, password);
         console.log("관리자 로그인 성공:", userCredential.user.email);
         closeLoginModal();
@@ -418,7 +415,6 @@ function updateUIForAuth(user) {
         navLoginBtn.style.display = "none";
         navLogoutBtn.style.display = "inline-flex";
         
-        // 관리자 편집 요소 노출
         if (adminControlBar) adminControlBar.style.display = "flex";
         adminModeIndicator.style.display = "inline-flex";
         adminUrlEditContainer.style.display = "block";
@@ -426,7 +422,6 @@ function updateUIForAuth(user) {
         navLoginBtn.style.display = "inline-flex";
         navLogoutBtn.style.display = "none";
         
-        // 관리자 편집 요소 숨김
         if (adminControlBar) adminControlBar.style.display = "none";
         adminModeIndicator.style.display = "none";
         adminUrlEditContainer.style.display = "none";
@@ -443,23 +438,19 @@ adminSaveBtn.addEventListener("click", async () => {
     const newUrl = adminBlogUrlInput.value.trim();
     
     try {
-        // Firestore DB 업데이트 요청 (문서 ID를 문자열로 지정)
         await db.collection('portfolio_projects').doc(currentEditingProjectId.toString()).update({
             blogUrl: newUrl
         });
             
-        // 1. 메모리 상의 projects 배열 값 업데이트
         const targetProject = projects.find(p => p.id === currentEditingProjectId);
         if (targetProject) {
             targetProject.blogUrl = newUrl;
         }
         
-        // 2. 화면에 실시간 변경 카드 리렌더링
         const activeTab = document.querySelector(".filter-tab.active");
         const currentFilter = activeTab ? activeTab.getAttribute("data-filter") : "all";
         renderProjects(currentFilter);
         
-        // 3. 모달 내의 블로그 버튼 주소 업데이트 및 노출 여부 조절
         if (newUrl !== "") {
             modalBlogLink.href = newUrl;
             modalBlogLink.style.display = "inline-flex";
@@ -493,17 +484,17 @@ adminSeedBtn.addEventListener("click", async () => {
     adminSeedBtn.innerHTML = "<i class='fa-solid fa-spinner fa-spin'></i> 세팅 진행 중...";
     
     try {
-        const batch = db.batch(); // 일괄 작업을 위한 batch 생성
+        const batch = db.batch();
         
         localBackupProjects.forEach(project => {
             const docRef = db.collection('portfolio_projects').doc(project.id.toString());
             batch.set(docRef, project);
         });
         
-        await batch.commit(); // 배치 원자적 커밋 수행
+        await batch.commit();
         
         alert("🎉 성공적으로 Firestore에 12대 프로젝트 초기 데이터가 셋업되었습니다!");
-        fetchProjects(); // 화면 데이터 갱신
+        fetchProjects();
     } catch (e) {
         console.error("초기 데이터 생성 중 에러:", e);
         alert("데이터 생성에 실패했습니다. Firebase Console의 보안 규칙(Rules) 설정을 확인해 주세요.");
@@ -523,7 +514,6 @@ window.addEventListener("keydown", (e) => {
 
 // 11. 🚀 페이지 초기 로드 시 동작 실행
 document.addEventListener("DOMContentLoaded", () => {
-    // Firebase 로그인 상태 리스너 구독
     if (auth) {
         auth.onAuthStateChanged((user) => {
             console.log(`인증 세션 이벤트 감지: ${user ? '로그인됨' : '로그아웃됨'}`);
@@ -531,6 +521,5 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
     
-    // DB 데이터 로드
     fetchProjects();
 });
