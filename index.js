@@ -1,30 +1,40 @@
 /**
  * ==========================================================================
- * 📂 VibeCoding Portfolio - Javascript Core (Supabase Client Fixed)
+ * 📂 VibeCoding Portfolio - Javascript Core (Firebase Integrated)
  * --------------------------------------------------------------------------
- * 이 파일은 Supabase를 연동하여 포트폴리오 데이터를 불러오고 관리자 로그인을 처리합니다.
+ * 이 파일은 Firebase를 연동하여 포트폴리오 데이터를 불러오고 관리자 로그인을 처리합니다.
  * 
- * 🛠️ [버그 수정 내용]
- * Supabase V2 CDN 라이브러리가 로드되면서 전역 스코프에 'supabase' 식별자가 이미
- * 선언되어 충돌 오류(Identifier already been declared)를 일으키던 문제를 해결하기 위해,
- * 자바스크립트 내부의 클라이언트 인스턴스 변수명을 'supabaseClient'로 전면 교체하였습니다.
+ * 💡 [보안 및 설정 가이드]
+ * 1. 상단의 firebaseConfig 객체에 사용자의 Firebase 프로젝트 설정 정보를 기입하세요.
+ * 2. Firebase와 연동되기 전에는 로컬 백업 데이터가 작동하여 화면 깨짐을 방지합니다.
+ * 3. 관리자 로그인 후 화면 상단의 [Firestore 데이터 초기 셋업] 버튼을 누르면
+ *    12종의 초기 프로젝트 데이터가 사용자의 Firestore DB에 자동으로 즉시 적재됩니다.
  * ==========================================================================
  */
 
-// 1. ⚙️ Supabase 설정 (사용자의 프로젝트 정보를 입력해 주세요!)
-const supabaseUrl = 'YOUR_SUPABASE_URL'; // 👈기에 Supabase URL 입력 (예: https://xxxx.supabase.co)
-const supabaseKey = 'YOUR_SUPABASE_ANON_KEY'; // 👈 여기에 Supabase Anon Key 입력
+// 1. 🔥 Firebase 프로젝트 설정 정보 (사용자의 키값으로 교체해 주세요!)
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_STORAGE_BUCKET",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
 
-let supabaseClient = null; // 🛠️ 전역 객체와의 충돌 방지를 위해 변수명 변경 (supabase -> supabaseClient)
+let db = null;
+let auth = null;
 let projects = []; // DB 또는 백업 데이터가 채워질 프로젝트 목록 배열
 let currentEditingProjectId = null; // 현재 상세 모달창에 열려있는 프로젝트 ID
 
-// Supabase CDN v2 라이브러리가 전역 변수 'supabase'를 제공하므로 이를 이용해 초기화
-if (typeof supabase !== 'undefined' && supabaseUrl !== 'YOUR_SUPABASE_URL') {
-    supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+// Firebase SDK 로드 확인 후 초기화 진행
+if (typeof firebase !== 'undefined' && firebaseConfig.apiKey !== 'YOUR_API_KEY') {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    auth = firebase.auth();
 }
 
-// 2. 🗄️ Supabase 연결이 안 되었을 때 사용할 로컬 백업 데이터 (안전장치)
+// 2. 🗄️ Firebase 연결이 안 되었을 때 사용할 로컬 백업 데이터 (안전장치)
 const localBackupProjects = [
     {
         id: 2,
@@ -187,33 +197,35 @@ const loginEmailInput = document.getElementById("login-email");
 const loginPasswordInput = document.getElementById("login-password");
 const loginErrorMsg = document.getElementById("login-error-msg");
 
-// 관리자 전용 편집 요소들
+// 관리자 전용 편집 및 제어 요소들
+const adminControlBar = document.querySelector(".admin-control-bar");
 const adminModeIndicator = document.getElementById("admin-mode-indicator");
+const adminSeedBtn = document.getElementById("admin-seed-btn");
 const adminUrlEditContainer = document.getElementById("admin-url-edit-container");
 const adminBlogUrlInput = document.getElementById("admin-blog-url-input");
 const adminSaveBtn = document.getElementById("admin-save-btn");
 const adminEditStatus = document.getElementById("admin-edit-status");
 
-// 4. 🗃️ DB로부터 프로젝트 데이터 조회 함수
+// 4. 🗄️ Firestore로부터 프로젝트 데이터 조회 함수
 async function fetchProjects() {
-    // Supabase가 초기화되지 않았거나 연결이 불가능하면 백업 데이터 사용
-    if (!supabaseClient) {
-        console.warn("Supabase가 연결되지 않았습니다. 로컬 백업 데이터를 사용합니다.");
+    // Firebase가 초기화되지 않았거나 연결이 불가능하면 백업 데이터 사용
+    if (!db) {
+        console.warn("Firebase가 연결되지 않았습니다. 로컬 백업 데이터를 사용합니다.");
         projects = [...localBackupProjects];
         renderProjects("all");
         return;
     }
     
     try {
-        const { data, error } = await supabaseClient
-            .from('portfolio_projects')
-            .select('*')
-            .order('id', { ascending: true });
-            
-        if (error) throw error;
+        const snapshot = await db.collection('portfolio_projects').orderBy('id').get();
+        const dataList = [];
         
-        if (data && data.length > 0) {
-            projects = data.map(item => ({
+        snapshot.forEach(doc => {
+            dataList.push(doc.data());
+        });
+        
+        if (dataList.length > 0) {
+            projects = dataList.map(item => ({
                 id: item.id,
                 title: item.title,
                 category: item.category,
@@ -222,10 +234,12 @@ async function fetchProjects() {
                 summary: item.summary,
                 tech: item.tech,
                 details: item.details,
-                blogUrl: item.blog_url || ""
+                blogUrl: item.blogUrl || ""
             }));
-            console.log("DB로부터 데이터를 정상적으로 불러왔습니다.");
+            console.log("Firestore로부터 데이터를 정상적으로 불러왔습니다.");
         } else {
+            // Firestore 컬렉션이 비어있는 상태
+            console.log("Firestore 컬렉션이 비어있습니다. 백업 데이터를 노출합니다.");
             projects = [...localBackupProjects];
         }
     } catch (e) {
@@ -370,49 +384,50 @@ loginForm.addEventListener("submit", async (e) => {
     const email = loginEmailInput.value.trim();
     const password = loginPasswordInput.value;
     
-    if (!supabaseClient) {
-        loginErrorMsg.textContent = "Supabase가 올바르게 설정되지 않았습니다. 개발자 도구 콘솔을 확인해 주세요.";
+    if (!auth) {
+        loginErrorMsg.textContent = "Firebase Auth가 구성되지 않았습니다.";
         loginErrorMsg.style.display = "block";
         return;
     }
     
-    // Supabase Auth 로그인 요청
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-        email: email,
-        password: password
-    });
-    
-    if (error) {
+    try {
+        // Firebase Auth 로그인 요청
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        console.log("관리자 로그인 성공:", userCredential.user.email);
+        closeLoginModal();
+    } catch (error) {
+        console.error("로그인 실패:", error);
         loginErrorMsg.textContent = "이메일 또는 비밀번호가 올바르지 않습니다.";
         loginErrorMsg.style.display = "block";
-    } else {
-        console.log("관리자 로그인 성공:", data.user.email);
-        closeLoginModal();
     }
 });
 
 // 로그아웃 처리
 navLogoutBtn.addEventListener("click", async () => {
-    if (supabaseClient) {
-        await supabaseClient.auth.signOut();
+    if (auth) {
+        await auth.signOut();
         console.log("로그아웃 되었습니다.");
     }
 });
 
 // 관리자 로그인 상태에 따른 UI 제어 함수
-function updateUIForAuth(session) {
-    const isLoggedIn = !!session;
+function updateUIForAuth(user) {
+    const isLoggedIn = !!user;
     
     if (isLoggedIn) {
         navLoginBtn.style.display = "none";
         navLogoutBtn.style.display = "inline-flex";
         
+        // 관리자 편집 요소 노출
+        if (adminControlBar) adminControlBar.style.display = "flex";
         adminModeIndicator.style.display = "inline-flex";
         adminUrlEditContainer.style.display = "block";
     } else {
         navLoginBtn.style.display = "inline-flex";
         navLogoutBtn.style.display = "none";
         
+        // 관리자 편집 요소 숨김
+        if (adminControlBar) adminControlBar.style.display = "none";
         adminModeIndicator.style.display = "none";
         adminUrlEditContainer.style.display = "none";
     }
@@ -420,7 +435,7 @@ function updateUIForAuth(session) {
 
 // 9. 💾 실시간 블로그 주소 저장 기능
 adminSaveBtn.addEventListener("click", async () => {
-    if (!supabaseClient || !currentEditingProjectId) return;
+    if (!db || !currentEditingProjectId) return;
     
     adminEditStatus.className = "edit-status-msg";
     adminEditStatus.textContent = "저장 중...";
@@ -428,22 +443,23 @@ adminSaveBtn.addEventListener("click", async () => {
     const newUrl = adminBlogUrlInput.value.trim();
     
     try {
-        const { error } = await supabaseClient
-            .from('portfolio_projects')
-            .update({ blog_url: newUrl })
-            .eq('id', currentEditingProjectId);
+        // Firestore DB 업데이트 요청 (문서 ID를 문자열로 지정)
+        await db.collection('portfolio_projects').doc(currentEditingProjectId.toString()).update({
+            blogUrl: newUrl
+        });
             
-        if (error) throw error;
-        
+        // 1. 메모리 상의 projects 배열 값 업데이트
         const targetProject = projects.find(p => p.id === currentEditingProjectId);
         if (targetProject) {
             targetProject.blogUrl = newUrl;
         }
         
+        // 2. 화면에 실시간 변경 카드 리렌더링
         const activeTab = document.querySelector(".filter-tab.active");
         const currentFilter = activeTab ? activeTab.getAttribute("data-filter") : "all";
         renderProjects(currentFilter);
         
+        // 3. 모달 내의 블로그 버튼 주소 업데이트 및 노출 여부 조절
         if (newUrl !== "") {
             modalBlogLink.href = newUrl;
             modalBlogLink.style.display = "inline-flex";
@@ -453,12 +469,47 @@ adminSaveBtn.addEventListener("click", async () => {
         }
         
         adminEditStatus.className = "edit-status-msg edit-status-success";
-        adminEditStatus.innerHTML = "<i class='fa-solid fa-check'></i> 성공적으로 DB에 저장되었습니다!";
+        adminEditStatus.innerHTML = "<i class='fa-solid fa-check'></i> 성공적으로 Firestore에 저장되었습니다!";
         
     } catch (e) {
         console.error("데이터 저장 오류:", e);
         adminEditStatus.className = "edit-status-msg edit-status-error";
-        adminEditStatus.innerHTML = "<i class='fa-solid fa-circle-exclamation'></i> 저장에 실패했습니다. (권한 없음 또는 DB 오류)";
+        adminEditStatus.innerHTML = "<i class='fa-solid fa-circle-exclamation'></i> 저장에 실패했습니다. (권한 없음 또는 규칙 차단)";
+    }
+});
+
+// 10. 🛠️ Firestore 초기 데이터 일괄 셋업 기능 (Seed Data)
+adminSeedBtn.addEventListener("click", async () => {
+    if (!db) {
+        alert("Firebase DB가 초기화되지 않았습니다. config 설정을 확인해 주세요.");
+        return;
+    }
+    
+    if (!confirm("Firestore에 12개의 바이브코딩 초기 프로젝트 데이터를 일괄 생성하시겠습니까?\n(이미 존재하는 문서는 덮어씁니다.)")) {
+        return;
+    }
+    
+    adminSeedBtn.disabled = true;
+    adminSeedBtn.innerHTML = "<i class='fa-solid fa-spinner fa-spin'></i> 세팅 진행 중...";
+    
+    try {
+        const batch = db.batch(); // 일괄 작업을 위한 batch 생성
+        
+        localBackupProjects.forEach(project => {
+            const docRef = db.collection('portfolio_projects').doc(project.id.toString());
+            batch.set(docRef, project);
+        });
+        
+        await batch.commit(); // 배치 원자적 커밋 수행
+        
+        alert("🎉 성공적으로 Firestore에 12대 프로젝트 초기 데이터가 셋업되었습니다!");
+        fetchProjects(); // 화면 데이터 갱신
+    } catch (e) {
+        console.error("초기 데이터 생성 중 에러:", e);
+        alert("데이터 생성에 실패했습니다. Firebase Console의 보안 규칙(Rules) 설정을 확인해 주세요.");
+    } finally {
+        adminSeedBtn.disabled = false;
+        adminSeedBtn.innerHTML = "<i class='fa-solid fa-cloud-arrow-up'></i> Firestore 데이터 초기 셋업";
     }
 });
 
@@ -470,18 +521,16 @@ window.addEventListener("keydown", (e) => {
     }
 });
 
-// 10. 🚀 페이지 초기 로드 시 동작 실행
+// 11. 🚀 페이지 초기 로드 시 동작 실행
 document.addEventListener("DOMContentLoaded", () => {
-    if (supabaseClient) {
-        supabaseClient.auth.onAuthStateChange((event, session) => {
-            console.log(`인증 이벤트 감지: ${event}`);
-            updateUIForAuth(session);
-        });
-        
-        supabaseClient.auth.getSession().then(({ data: { session } }) => {
-            updateUIForAuth(session);
+    // Firebase 로그인 상태 리스너 구독
+    if (auth) {
+        auth.onAuthStateChanged((user) => {
+            console.log(`인증 세션 이벤트 감지: ${user ? '로그인됨' : '로그아웃됨'}`);
+            updateUIForAuth(user);
         });
     }
     
+    // DB 데이터 로드
     fetchProjects();
 });

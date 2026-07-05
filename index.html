@@ -23,8 +23,10 @@
     <!-- 스타일 및 폰트 아이콘 로드 (FontAwesome) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Supabase JS 라이브러리 연동 (CDN 호출) -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- 🛠️ Firebase v8 SDK 연동 (CDN 호출 - App, Auth, Firestore 순서로 로드) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <!-- 프로젝트 스타일시트 연결 -->
     <link rel="stylesheet" href="index.css">
@@ -83,9 +85,15 @@
                 <h2 class="section-title">📂 프로젝트 보드</h2>
                 <p class="section-desc">진행한 프로젝트의 목적에 따라 분류하여 모아볼 수 있습니다.</p>
                 
-                <!-- 관리자 상태 표시 뱃지 -->
-                <div class="admin-status-badge logged-in-only" id="admin-mode-indicator" style="display: none;">
-                    <i class="fa-solid fa-circle-check"></i> 관리자 편집 모드가 활성화되었습니다.
+                <!-- 관리자 상태 표시 및 초기화 랩 -->
+                <div class="admin-control-bar logged-in-only" style="display: none; margin-top: 1.5rem; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+                    <div class="admin-status-badge" id="admin-mode-indicator" style="margin-top: 0;">
+                        <i class="fa-solid fa-circle-check"></i> 관리자 편집 모드가 활성화되었습니다.
+                    </div>
+                    <!-- 🛠️ Firestore 초기 데이터 세팅을 위한 원클릭 버튼 -->
+                    <button class="btn btn-save" id="admin-seed-btn" style="padding: 0.5rem 1rem; border-radius: 99px; background: #6366f1; box-shadow: none; font-size: 0.8rem;">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Firestore 데이터 초기 셋업
+                    </button>
                 </div>
             </div>
 
