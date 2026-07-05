@@ -1,13 +1,13 @@
 /**
  * ==========================================================================
- * 📂 VibeCoding Portfolio - Javascript Core (Firebase Config Updated)
+ * 📂 VibeCoding Portfolio - Javascript Core (Google Login Integrated)
  * --------------------------------------------------------------------------
  * 이 파일은 Firebase를 연동하여 포트폴리오 데이터를 불러오고 관리자 로그인을 처리합니다.
  * 
- * 💡 [보안 및 설정 가이드]
- * 1. 사용자의 실제 SciBit Firebase 프로젝트 설정 키가 정상적으로 기입되었습니다.
- * 2. 관리자 로그인 후 화면 상단의 [Firestore 데이터 초기 셋업] 버튼을 누르면
- *    12종의 초기 프로젝트 데이터가 사용자의 Firestore DB에 자동으로 즉시 적재됩니다.
+ * 💡 [Google 로그인 보안 제어]
+ * 1. ADMIN_EMAILS 배열에 소유하고 계신 구글 이메일 주소를 적어두시면
+ *    해당 구글 계정으로 로그인했을 때만 관리자 편집 모드가 활성화됩니다.
+ * 2. 관리자 이외의 구글 계정은 자동으로 접근 차단 및 강제 로그아웃됩니다.
  * ==========================================================================
  */
 
@@ -21,6 +21,13 @@ const firebaseConfig = {
     appId: "1:251134120206:web:c53305635aaaa6fc50c75f",
     measurementId: "G-JY5E4PNVJ3"
 };
+
+// 🔒 관리자 권한을 부여할 구글 이메일 목록 (필요시 추가 입력해 주세요!)
+const ADMIN_EMAILS = [
+    "kfcman21@gmail.com",
+    "kfcman21@naver.com",
+    "kfcman21@daum.net"
+];
 
 let db = null;
 let auth = null;
@@ -154,7 +161,7 @@ const localBackupProjects = [
         tags: ["Supabase", "Firebase", "SQL"],
         summary: "그림 비밀번호 자체 로그인 및 학생용 과학 탐구 기록 시스템",
         tech: "Supabase Database, Row Level Security(RLS) 행 단위 보안 정책 설정, Firebase Hosting 배포, SQL 스키마",
-        details: "초등학교 현장에서 복잡한 인증 절차 없이 학생들이 자신만의 그림 순서(패턴)로 로그인할 수 있는 맞춤형 탐구 관리 시스템입니다. 센서를 활용한 과학실험 측정치(JSON) 및 결론을 DB에 저장하며, 교사는 로그인 보안 및 데이터 RLS 설정을 통해 안전하게 학급 명단을 관리할 수 있습니다.",
+        details: "초등학교 현장에서 복잡한 인증 절차 없이 학생들이 자신만의 그림 순서(patterns)로 로그인할 수 있는 맞춤형 탐구 관리 시스템입니다. 센서를 활용한 과학실험 측정치(JSON) 및 결론을 DB에 저장하며, 교사는 로그인 보안 및 데이터 RLS 설정을 통해 안전하게 학급 명단을 관리할 수 있습니다.",
         blogUrl: ""
     },
     {
@@ -196,6 +203,7 @@ const loginForm = document.getElementById("login-form");
 const loginEmailInput = document.getElementById("login-email");
 const loginPasswordInput = document.getElementById("login-password");
 const loginErrorMsg = document.getElementById("login-error-msg");
+const adminGoogleLoginBtn = document.getElementById("admin-google-login-btn"); // 🛠️ 구글 로그인 버튼
 
 // 관리자 전용 편집 및 제어 요소들
 const adminControlBar = document.querySelector(".admin-control-bar");
@@ -374,7 +382,35 @@ function closeLoginModal() {
 loginModalCloseBtn.addEventListener("click", closeLoginModal);
 loginModalCloseBackdrop.addEventListener("click", closeLoginModal);
 
-// 로그인 폼 제출 이벤트 처리
+// 🛠️ Google 소셜 로그인 핸들러 등록
+adminGoogleLoginBtn.addEventListener("click", async () => {
+    if (!auth) {
+        alert("Firebase Auth가 구성되지 않았습니다.");
+        return;
+    }
+    
+    const provider = new firebase.auth.GoogleAuthProvider();
+    try {
+        const result = await auth.signInWithPopup(provider);
+        const user = result.user;
+        
+        // 이메일 권한 검사 (ADMIN_EMAILS 목록 대조)
+        if (ADMIN_EMAILS.includes(user.email)) {
+            console.log("관리자 구글 로그인 성공:", user.email);
+            closeLoginModal();
+        } else {
+            // 이메일 불일치 시 강제 로그아웃
+            await auth.signOut();
+            alert(`관리자 권한이 없는 구글 계정입니다.\n(로그인 시도 계정: ${user.email})`);
+            closeLoginModal();
+        }
+    } catch (error) {
+        console.error("구글 로그인 에러:", error);
+        alert("구글 로그인 진행 중 에러가 발생했거나 창이 닫혔습니다.");
+    }
+});
+
+// 로그인 폼 제출 이벤트 처리 (이메일/비밀번호 백업용)
 loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     loginErrorMsg.style.display = "none";
@@ -390,8 +426,16 @@ loginForm.addEventListener("submit", async (e) => {
     
     try {
         const userCredential = await auth.signInWithEmailAndPassword(email, password);
-        console.log("관리자 로그인 성공:", userCredential.user.email);
-        closeLoginModal();
+        
+        // 이메일/PW 로그인 시에도 ADMIN_EMAILS 권한 검사 적용
+        if (ADMIN_EMAILS.includes(userCredential.user.email)) {
+            console.log("관리자 이메일 로그인 성공:", userCredential.user.email);
+            closeLoginModal();
+        } else {
+            await auth.signOut();
+            loginErrorMsg.textContent = "이메일은 등록되었으나 관리자 권한이 없습니다.";
+            loginErrorMsg.style.display = "block";
+        }
     } catch (error) {
         console.error("로그인 실패:", error);
         loginErrorMsg.textContent = "이메일 또는 비밀번호가 올바르지 않습니다.";
@@ -409,9 +453,10 @@ navLogoutBtn.addEventListener("click", async () => {
 
 // 관리자 로그인 상태에 따른 UI 제어 함수
 function updateUIForAuth(user) {
-    const isLoggedIn = !!user;
+    // 세션이 존재하고, 해당 계정이 관리자 이메일 목록에 포함되어 있을 때만 관리자 모드 On
+    const isLoggedInAdmin = user && ADMIN_EMAILS.includes(user.email);
     
-    if (isLoggedIn) {
+    if (isLoggedInAdmin) {
         navLoginBtn.style.display = "none";
         navLogoutBtn.style.display = "inline-flex";
         
