@@ -1,18 +1,31 @@
 /**
  * ==========================================================================
- * 📂 VibeCoding Portfolio - Javascript Core (Updated with 3 New Projects)
+ * 📂 VibeCoding Portfolio - Javascript Core (Supabase Integrated)
  * --------------------------------------------------------------------------
- * 이 파일은 12개의 바이브코딩 프로젝트 데이터를 관리하고, 화면에 동적으로 카드를 그리는 스크립트입니다.
+ * 이 파일은 Supabase를 연동하여 포트폴리오 데이터를 불러오고, 관리자 로그인 상태를 감지하며,
+ * 관리자 로그인 시 브라우저에서 직접 블로그 주소를 실시간으로 저장 및 수정할 수 있게 해줍니다.
  * 
- * 💡 [추가 사항]
- * 1. mousezoomit (마우스 줌잇), createAI (SciBit), chromezi (ChromeZI) 3종이 추가되었습니다.
- * 2. 총 12개의 프로젝트 데이터를 관리하며, 카테고리 필터 및 모달창 연결이 제공됩니다.
- * 3. 블로그 링크가 등록되지 않은 프로젝트는 "블로그 보기" 버튼이 자동으로 숨겨집니다.
+ * 💡 [보안 및 설정 가이드]
+ * 1. 상단의 supabaseUrl과 supabaseKey를 사용자의 Supabase 프로젝트 정보로 수정하세요.
+ * 2. Supabase DB와 연동이 완료되기 전에도 화면이 깨지지 않도록 로컬 백업 데이터가 자동으로 작동합니다.
  * ==========================================================================
  */
 
-// 1. 프로젝트 12종 데이터베이스 정의
-const projects = [
+// 1. ⚙️ Supabase 설정 (사용자의 프로젝트 정보를 입력해 주세요!)
+const supabaseUrl = 'YOUR_SUPABASE_URL'; // 👈 여기에 Supabase URL 입력 (예: https://xxxx.supabase.co)
+const supabaseKey = 'YOUR_SUPABASE_ANON_KEY'; // 👈 여기에 Supabase Anon Key 입력
+
+let supabase = null;
+let projects = []; // DB 또는 백업 데이터가 채워질 프로젝트 목록 배열
+let currentEditingProjectId = null; // 현재 상세 모달창에 열려있는 프로젝트 ID
+
+// Supabase 라이브러리가 로드되었고 키가 입력되었는지 확인 후 초기화
+if (typeof supabasejs !== 'undefined' && supabaseUrl !== 'YOUR_SUPABASE_URL') {
+    supabase = supabasejs.createClient(supabaseUrl, supabaseKey);
+}
+
+// 2. 🗄️ Supabase 연결이 안 되었을 때 사용할 로컬 백업 데이터 (안전장치)
+const localBackupProjects = [
     {
         id: 2,
         title: "바탕화면 투명 달력 위젯",
@@ -113,7 +126,7 @@ const projects = [
         blogUrl: ""
     },
     {
-        id: 11, // 신규 추가
+        id: 11,
         title: "MouseZoomIt",
         category: "widget",
         icon: "fa-solid fa-magnifying-glass-plus",
@@ -124,7 +137,7 @@ const projects = [
         blogUrl: ""
     },
     {
-        id: 12, // 신규 추가
+        id: 12,
         title: "SciBit - AI 과학 탐구 기록기",
         category: "backend",
         icon: "fa-solid fa-flask",
@@ -135,9 +148,9 @@ const projects = [
         blogUrl: ""
     },
     {
-        id: 13, // 신규 추가
+        id: 13,
         title: "ChromeZI - 화면 줌 & 하이라이트",
-        category: "education", // 크롬북 수업 자료 및 교구 성격이 강하므로 education에 배치합니다.
+        category: "education",
         icon: "fa-brands fa-chrome",
         tags: ["ChromeExtension", "ManifestV3", "JavaScript"],
         summary: "크롬북 수업 환경을 위한 Chrome용 ZoomIt 스타일 오버레이 도구",
@@ -147,11 +160,11 @@ const projects = [
     }
 ];
 
-// 2. DOM 요소 선택
+// 3. DOM 요소 선택
 const projectsGrid = document.getElementById("projects-grid");
 const filterTabs = document.querySelectorAll(".filter-tab");
 
-// 모달창 요소
+// 모달창 요소들
 const modal = document.getElementById("project-modal");
 const modalCloseBtn = document.getElementById("modal-close-btn");
 const modalCloseBackdrop = document.getElementById("modal-close-backdrop");
@@ -163,29 +176,87 @@ const modalTech = document.getElementById("modal-tech");
 const modalDetails = document.getElementById("modal-details");
 const modalBlogLink = document.getElementById("modal-blog-link");
 
-// 3. 프로젝트 카드 동적 렌더링 함수
+// 관리자 로그인 모달 요소들
+const loginModal = document.getElementById("login-modal");
+const navLoginBtn = document.getElementById("nav-login-btn");
+const navLogoutBtn = document.getElementById("nav-logout-btn");
+const loginModalCloseBtn = document.getElementById("login-modal-close-btn");
+const loginModalCloseBackdrop = document.getElementById("login-modal-close-backdrop");
+const loginForm = document.getElementById("login-form");
+const loginEmailInput = document.getElementById("login-email");
+const loginPasswordInput = document.getElementById("login-password");
+const loginErrorMsg = document.getElementById("login-error-msg");
+
+// 관리자 전용 편집 요소들
+const adminModeIndicator = document.getElementById("admin-mode-indicator");
+const adminUrlEditContainer = document.getElementById("admin-url-edit-container");
+const adminBlogUrlInput = document.getElementById("admin-blog-url-input");
+const adminSaveBtn = document.getElementById("admin-save-btn");
+const adminEditStatus = document.getElementById("admin-edit-status");
+
+// 4. 🗃️ DB로부터 프로젝트 데이터 조회 함수
+async function fetchProjects() {
+    // Supabase가 초기화되지 않았거나 연결이 불가능하면 백업 데이터 사용
+    if (!supabase) {
+        console.warn("Supabase가 연결되지 않았습니다. 로컬 백업 데이터를 사용합니다.");
+        projects = [...localBackupProjects];
+        renderProjects("all");
+        return;
+    }
+    
+    try {
+        const { data, error } = await supabase
+            .from('portfolio_projects')
+            .select('*')
+            .order('id', { ascending: true });
+            
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+            // DB 테이블 컬럼명 매핑 (snake_case -> camelCase)
+            projects = data.map(item => ({
+                id: item.id,
+                title: item.title,
+                category: item.category,
+                icon: item.icon,
+                tags: item.tags,
+                summary: item.summary,
+                tech: item.tech,
+                details: item.details,
+                blogUrl: item.blog_url || "" // DB 컬럼: blog_url
+            }));
+            console.log("DB로부터 데이터를 정상적으로 불러왔습니다.");
+        } else {
+            // 데이터가 비었으면 백업 사용
+            projects = [...localBackupProjects];
+        }
+    } catch (e) {
+        console.error("데이터 로드 중 에러가 발생하여 백업 데이터를 사용합니다: ", e);
+        projects = [...localBackupProjects];
+    }
+    
+    renderProjects("all");
+}
+
+// 5. 프로젝트 카드 동적 렌더링 함수
 function renderProjects(filterCategory = "all") {
-    // 컨테이너 초기화
     projectsGrid.innerHTML = "";
     
-    // 카테고리 필터링
     const filteredProjects = filterCategory === "all" 
         ? projects 
         : projects.filter(p => p.category === filterCategory);
         
-    // 필터링된 데이터를 순회하며 HTML 카드 생성
     filteredProjects.forEach(project => {
         const card = document.createElement("div");
         card.classList.add("project-card");
         
-        // 블로그 링크가 있는 경우에만 '블로그 보기' 버튼 생성
+        // 블로그 링크 존재 여부에 따라 버튼 렌더링
         const blogButtonHtml = project.blogUrl && project.blogUrl.trim() !== ""
-            ? `<a href="${project.blogUrl}" target="_blank" class="card-btn card-btn-blog">
+            ? `<a href="${project.blogUrl}" target="_blank" class="card-btn card-btn-blog" id="btn-blog-${project.id}">
                    <i class="fa-solid fa-square-n text-naver"></i> 블로그 보기
                </a>`
             : "";
         
-        // 카드 내부에 들어갈 HTML 구조 작성
         card.innerHTML = `
             <div>
                 <div class="card-header">
@@ -212,7 +283,6 @@ function renderProjects(filterCategory = "all") {
     });
 }
 
-// 4. 영문 카테고리명을 한국어로 변환해주는 헬퍼 함수
 function getCategoryName(category) {
     switch (category) {
         case "widget": return "데스크톱 위젯";
@@ -223,36 +293,30 @@ function getCategoryName(category) {
     }
 }
 
-// 5. 카테고리 필터 탭 클릭 이벤트 바인딩
+// 6. 카테고리 필터 탭 클릭 이벤트 바인딩
 filterTabs.forEach(tab => {
     tab.addEventListener("click", () => {
-        // 기존 액티브 탭 클래스 제거
         filterTabs.forEach(t => t.classList.remove("active"));
-        
-        // 클릭한 탭 액티브 활성화
         tab.classList.add("active");
-        
-        // 필터 조건 읽어오기
         const filterValue = tab.getAttribute("data-filter");
-        
-        // 카드 렌더링
         renderProjects(filterValue);
     });
 });
 
-// 6. 모달 창 열기 함수
+// 7. 프로젝트 상세 정보 모달 열기 함수
 window.openProjectModal = function(projectId) {
     const project = projects.find(p => p.id === projectId);
     if (!project) return;
     
-    // 모달 데이터 바인딩
+    currentEditingProjectId = projectId; // 현재 수정할 프로젝트 ID 추적
+    
     modalCategory.textContent = getCategoryName(project.category);
     modalTitle.textContent = project.title;
     modalSummary.textContent = project.summary;
     modalTech.textContent = project.tech;
     modalDetails.textContent = project.details;
     
-    // 블로그 링크 존재 여부에 따라 모달 하단 버튼 표시 여부 결정
+    // 네이버 블로그 링크 바인딩
     if (project.blogUrl && project.blogUrl.trim() !== "") {
         modalBlogLink.href = project.blogUrl;
         modalBlogLink.style.display = "inline-flex";
@@ -261,34 +325,181 @@ window.openProjectModal = function(projectId) {
         modalBlogLink.style.display = "none";
     }
     
+    // 관리자 전용 URL 입력 필드 값 초기화
+    adminBlogUrlInput.value = project.blogUrl;
+    adminEditStatus.textContent = ""; // 이전 알림 메세지 비우기
+    
     // 태그 리스트 생성
     modalTags.innerHTML = project.tags.map(tag => `<span class="tag">#${tag}</span>`).join('');
     
-    // 모달 활성화 및 body 스크롤 차단
     modal.classList.add("active");
     modal.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
 };
 
-// 7. 모달 창 닫기 함수
+// 모달 닫기
 function closeProjectModal() {
     modal.classList.remove("active");
     modal.setAttribute("aria-hidden", "true");
     document.body.style.overflow = "auto";
+    currentEditingProjectId = null;
 }
 
-// 모달 닫기 이벤트 리스너 설정 (X 버튼 및 배경 클릭 시)
 modalCloseBtn.addEventListener("click", closeProjectModal);
 modalCloseBackdrop.addEventListener("click", closeProjectModal);
 
-// ESC 키를 누르면 모달이 닫히도록 설정
-window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && modal.classList.contains("active")) {
-        closeProjectModal();
+// 8. 🔑 관리자 로그인/로그아웃 로직 구현
+
+// 로그인 모달 열기
+navLoginBtn.addEventListener("click", () => {
+    loginErrorMsg.style.display = "none";
+    loginEmailInput.value = "";
+    loginPasswordInput.value = "";
+    loginModal.classList.add("active");
+    loginModal.setAttribute("aria-hidden", "false");
+});
+
+// 로그인 모달 닫기
+function closeLoginModal() {
+    loginModal.classList.remove("active");
+    loginModal.setAttribute("aria-hidden", "true");
+}
+
+loginModalCloseBtn.addEventListener("click", closeLoginModal);
+loginModalCloseBackdrop.addEventListener("click", closeLoginModal);
+
+// 로그인 폼 제출 이벤트 처리
+loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    loginErrorMsg.style.display = "none";
+    
+    const email = loginEmailInput.value.trim();
+    const password = loginPasswordInput.value;
+    
+    if (!supabase) {
+        loginErrorMsg.textContent = "Supabase가 올바르게 설정되지 않았습니다. 개발자 도구 콘솔을 확인해 주세요.";
+        loginErrorMsg.style.display = "block";
+        return;
+    }
+    
+    // Supabase Auth 로그인 요청
+    const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password
+    });
+    
+    if (error) {
+        loginErrorMsg.textContent = "이메일 또는 비밀번호가 올바르지 않습니다.";
+        loginErrorMsg.style.display = "block";
+    } else {
+        console.log("관리자 로그인 성공:", data.user.email);
+        closeLoginModal();
     }
 });
 
-// 8. 초기 로드 시 전체 리스트 렌더링
+// 로그아웃 처리
+navLogoutBtn.addEventListener("click", async () => {
+    if (supabase) {
+        await supabase.auth.signOut();
+        console.log("로그아웃 되었습니다.");
+    }
+});
+
+// 관리자 로그인 상태에 따른 UI 제어 함수
+function updateUIForAuth(session) {
+    const isLoggedIn = !!session;
+    
+    if (isLoggedIn) {
+        // 로그인 상태
+        navLoginBtn.style.display = "none";
+        navLogoutBtn.style.display = "inline-flex";
+        
+        // 관리자 편집 요소 노출
+        adminModeIndicator.style.display = "inline-flex";
+        adminUrlEditContainer.style.display = "block";
+    } else {
+        // 로그아웃 상태
+        navLoginBtn.style.display = "inline-flex";
+        navLogoutBtn.style.display = "none";
+        
+        // 관리자 편집 요소 숨김
+        adminModeIndicator.style.display = "none";
+        adminUrlEditContainer.style.display = "none";
+    }
+}
+
+// 9. 💾 실시간 블로그 주소 저장 기능
+adminSaveBtn.addEventListener("click", async () => {
+    if (!supabase || !currentEditingProjectId) return;
+    
+    adminEditStatus.className = "edit-status-msg";
+    adminEditStatus.textContent = "저장 중...";
+    
+    const newUrl = adminBlogUrlInput.value.trim();
+    
+    try {
+        // Supabase DB 업데이트 요청
+        const { error } = await supabase
+            .from('portfolio_projects')
+            .update({ blog_url: newUrl }) // DB 컬럼: blog_url
+            .eq('id', currentEditingProjectId);
+            
+        if (error) throw error;
+        
+        // 1. 메모리 상의 projects 배열 값 업데이트
+        const targetProject = projects.find(p => p.id === currentEditingProjectId);
+        if (targetProject) {
+            targetProject.blogUrl = newUrl;
+        }
+        
+        // 2. 화면에 실시간 변경 카드 리렌더링
+        const activeTab = document.querySelector(".filter-tab.active");
+        const currentFilter = activeTab ? activeTab.getAttribute("data-filter") : "all";
+        renderProjects(currentFilter);
+        
+        // 3. 모달 내의 블로그 버튼 주소 업데이트 및 노출 여부 조절
+        if (newUrl !== "") {
+            modalBlogLink.href = newUrl;
+            modalBlogLink.style.display = "inline-flex";
+        } else {
+            modalBlogLink.href = "#";
+            modalBlogLink.style.display = "none";
+        }
+        
+        // 성공 메세지 출력
+        adminEditStatus.className = "edit-status-msg edit-status-success";
+        adminEditStatus.innerHTML = "<i class='fa-solid fa-check'></i> 성공적으로 DB에 저장되었습니다!";
+        
+    } catch (e) {
+        console.error("데이터 저장 오류:", e);
+        adminEditStatus.className = "edit-status-msg edit-status-error";
+        adminEditStatus.innerHTML = "<i class='fa-solid fa-circle-exclamation'></i> 저장에 실패했습니다. (권한 없음 또는 DB 오류)";
+    }
+});
+
+// ESC 및 모달 닫기
+window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+        if (modal.classList.contains("active")) closeProjectModal();
+        if (loginModal.classList.contains("active")) closeLoginModal();
+    }
+});
+
+// 10. 🚀 페이지 초기 로드 시 동작 실행
 document.addEventListener("DOMContentLoaded", () => {
-    renderProjects("all");
+    // Supabase 로그인 상태 리스너 구독
+    if (supabase) {
+        supabase.auth.onAuthStateChange((event, session) => {
+            console.log(`인증 이벤트 감지: ${event}`);
+            updateUIForAuth(session);
+        });
+        
+        // 현재 세션 상태 확인
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            updateUIForAuth(session);
+        });
+    }
+    
+    // DB 데이터 로드
+    fetchProjects();
 });

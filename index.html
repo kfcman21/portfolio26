@@ -5,15 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- 검색 엔진 최적화(SEO)를 위한 메타 데이터 설정 -->
     <title>바이브코딩 포트폴리오 | 창의적인 교육과 소프트웨어의 만남</title>
-    <meta name="description" content="바이브코딩에서 개발한 10가지 혁신적인 코딩 교육 프로그램, 데스크톱 위젯, 로봇 제어 시스템, 백엔드 인프라 프로젝트를 소개합니다. 네이버 블로그와 연동하여 상세한 가이드를 제공합니다.">
+    <meta name="description" content="바이브코딩에서 개발한 12가지 혁신적인 코딩 교육 프로그램, 데스크톱 위젯, 로봇 제어 시스템, 백엔드 인프라 프로젝트를 소개합니다. 네이버 블로그와 연동하여 상세한 가이드를 제공합니다.">
     <meta name="keywords" content="바이브코딩, 코딩교육, Electron, 파이썬, 햄스터로봇, NFC출석, 웹개발, 에듀테크">
     
-    <!-- Open Graph (카카오톡, 페이스북 등 공유 시 노출되는 정보) -->
+    <!-- Open Graph (공유 시 노출 정보) -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="바이브코딩 포트폴리오">
     <meta property="og:description" content="창의적인 코딩 교구 제어부터 유용한 바탕화면 위젯까지, 바이브코딩의 포트폴리오를 한눈에 확인하세요.">
     <meta property="og:image" content="https://via.placeholder.com/1200x630/0f172a/ffffff?text=VibeCoding+Portfolio">
-    <meta property="og:url" content="https://blog.naver.com/your_naver_id"> <!-- 블로그 링크 등으로 변경 가능 -->
+    <meta property="og:url" content="https://portfolio-xi-six-erw0nktmbt.vercel.app">
 
     <!-- 현대적이고 고급스러운 느낌의 Google Fonts 로드 (Outfit: 제목용, Inter: 본문용) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,6 +23,9 @@
     <!-- 스타일 및 폰트 아이콘 로드 (FontAwesome) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- Supabase JS 라이브러리 연동 (CDN 호출) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <!-- 프로젝트 스타일시트 연결 -->
     <link rel="stylesheet" href="index.css">
 </head>
@@ -41,7 +44,16 @@
             <nav class="nav-menu">
                 <a href="#hero" class="nav-link">홈</a>
                 <a href="#portfolio" class="nav-link">포트폴리오</a>
-                <a href="https://blog.naver.com/your_naver_id" target="_blank" class="blog-btn" id="nav-blog-link">
+                
+                <!-- 관리자 로그인 여부에 따라 노출될 제어 버튼들 -->
+                <button class="admin-action-btn" id="nav-login-btn">
+                    <i class="fa-solid fa-lock"></i> 관리자 로그인
+                </button>
+                <button class="admin-action-btn logged-in-only" id="nav-logout-btn" style="display: none;">
+                    <i class="fa-solid fa-unlock-keyhole"></i> 로그아웃
+                </button>
+                
+                <a href="https://blog.naver.com/kfcman21" target="_blank" class="blog-btn" id="nav-blog-link">
                     <i class="fa-solid fa-square-n text-naver"></i> 네이버 블로그 바로가기
                 </a>
             </nav>
@@ -60,7 +72,7 @@
                 </p>
                 <div class="hero-buttons">
                     <a href="#portfolio" class="btn btn-primary">포트폴리오 탐색하기 <i class="fa-solid fa-arrow-down"></i></a>
-                    <a href="https://blog.naver.com/your_naver_id" target="_blank" class="btn btn-outline">블로그 글 연계 안내 <i class="fa-solid fa-square-rss"></i></a>
+                    <a href="https://blog.naver.com/kfcman21" target="_blank" class="btn btn-outline">블로그 글 연계 안내 <i class="fa-solid fa-square-rss"></i></a>
                 </div>
             </div>
         </section>
@@ -70,6 +82,11 @@
             <div class="section-header">
                 <h2 class="section-title">📂 프로젝트 보드</h2>
                 <p class="section-desc">진행한 프로젝트의 목적에 따라 분류하여 모아볼 수 있습니다.</p>
+                
+                <!-- 관리자 상태 표시 뱃지 -->
+                <div class="admin-status-badge logged-in-only" id="admin-mode-indicator" style="display: none;">
+                    <i class="fa-solid fa-circle-check"></i> 관리자 편집 모드가 활성화되었습니다.
+                </div>
             </div>
 
             <!-- 카테고리 필터 탭 -->
@@ -124,6 +141,18 @@
 
                     <h4>📘 상세 개발 이야기</h4>
                     <p id="modal-details">여기에 파일 구조 분석 및 상세 개발 비하인드 내용이 표시됩니다.</p>
+                    
+                    <!-- 🛠️ 관리자 전용 블로그 주소 수정 영역 -->
+                    <div class="admin-edit-section logged-in-only" id="admin-url-edit-container" style="display: none;">
+                        <h4><i class="fa-solid fa-pen-to-square"></i> 네이버 블로그 URL 설정 (관리자 전용)</h4>
+                        <div class="edit-input-group">
+                            <input type="url" id="admin-blog-url-input" placeholder="https://blog.naver.com/kfcman21/..." value="">
+                            <button class="btn btn-save" id="admin-save-btn">
+                                <i class="fa-solid fa-floppy-disk"></i> 저장
+                            </button>
+                        </div>
+                        <p class="edit-status-msg" id="admin-edit-status"></p>
+                    </div>
                 </div>
                 
                 <!-- 하단 액션 버튼들 -->
@@ -136,7 +165,43 @@
         </div>
     </div>
 
-    <!-- 7. 프로젝트 실행에 필요한 자바스크립트 소스 연결 -->
+    <!-- 7. 관리자 로그인 모달 창 -->
+    <div class="modal" id="login-modal" aria-hidden="true">
+        <div class="modal-backdrop" id="login-modal-close-backdrop"></div>
+        <div class="modal-content modal-auth-width">
+            <button class="modal-close" id="login-modal-close-btn" aria-label="닫기">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="modal-body">
+                <div class="modal-header-info">
+                    <span class="modal-category"><i class="fa-solid fa-shield-halved"></i> 인증 요구됨</span>
+                    <h3 class="modal-title">관리자 로그인</h3>
+                    <p style="color: var(--text-muted); font-size: 0.85rem;">포트폴리오 소유자(kfcman21) 계정으로 로그인해 주세요.</p>
+                </div>
+                
+                <!-- 로그인 입력 폼 -->
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="login-email">이메일 주소</label>
+                        <input type="email" id="login-email" required placeholder="admin@vibecoding.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">비밀번호</label>
+                        <input type="password" id="login-password" required placeholder="••••••••">
+                    </div>
+                    <p class="error-msg" id="login-error-msg" style="display: none;"></p>
+                    
+                    <div class="modal-actions" style="margin-top: 1.5rem; padding-top: 1rem;">
+                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                            <i class="fa-solid fa-right-to-bracket"></i> 로그인
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. 프로젝트 실행에 필요한 자바스크립트 소스 연결 -->
     <script src="index.js"></script>
 </body>
 </html>
