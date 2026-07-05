@@ -1,13 +1,13 @@
 /**
  * ==========================================================================
- * 📂 VibeCoding Portfolio - Javascript Core (Google Login Integrated)
+ * 📂 VibeCoding Portfolio - Javascript Core (Admin Email Corrected)
  * --------------------------------------------------------------------------
  * 이 파일은 Firebase를 연동하여 포트폴리오 데이터를 불러오고 관리자 로그인을 처리합니다.
  * 
  * 💡 [Google 로그인 보안 제어]
- * 1. ADMIN_EMAILS 배열에 소유하고 계신 구글 이메일 주소를 적어두시면
- *    해당 구글 계정으로 로그인했을 때만 관리자 편집 모드가 활성화됩니다.
- * 2. 관리자 이외의 구글 계정은 자동으로 접근 차단 및 강제 로그아웃됩니다.
+ * 1. ADMIN_EMAILS 배열에 실제 소유하신 구글 이메일 주소(kfcmanck@gmail.com)를 반영 완료했습니다.
+ * 2. 해당 구글 계정으로 로그인했을 때만 관리자 편집 모드가 활성화됩니다.
+ * 3. 관리자 이외의 구글 계정은 자동으로 접근 차단 및 강제 로그아웃됩니다.
  * ==========================================================================
  */
 
@@ -22,9 +22,9 @@ const firebaseConfig = {
     measurementId: "G-JY5E4PNVJ3"
 };
 
-// 🔒 관리자 권한을 부여할 구글 이메일 목록 (필요시 추가 입력해 주세요!)
+// 🔒 관리자 권한을 부여할 구글 이메일 목록 (kfcmanck@gmail.com 정정 반영)
 const ADMIN_EMAILS = [
-    "kfcman21@gmail.com",
+    "kfcmanck@gmail.com", // 👈 실제 구글 로그인용 관리자 이메일
     "kfcman21@naver.com",
     "kfcman21@daum.net"
 ];
@@ -203,7 +203,7 @@ const loginForm = document.getElementById("login-form");
 const loginEmailInput = document.getElementById("login-email");
 const loginPasswordInput = document.getElementById("login-password");
 const loginErrorMsg = document.getElementById("login-error-msg");
-const adminGoogleLoginBtn = document.getElementById("admin-google-login-btn"); // 🛠️ 구글 로그인 버튼
+const adminGoogleLoginBtn = document.getElementById("admin-google-login-btn");
 
 // 관리자 전용 편집 및 제어 요소들
 const adminControlBar = document.querySelector(".admin-control-bar");
@@ -382,7 +382,7 @@ function closeLoginModal() {
 loginModalCloseBtn.addEventListener("click", closeLoginModal);
 loginModalCloseBackdrop.addEventListener("click", closeLoginModal);
 
-// 🛠️ Google 소셜 로그인 핸들러 등록
+// Google 소셜 로그인 핸들러 등록
 adminGoogleLoginBtn.addEventListener("click", async () => {
     if (!auth) {
         alert("Firebase Auth가 구성되지 않았습니다.");
@@ -394,12 +394,11 @@ adminGoogleLoginBtn.addEventListener("click", async () => {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
         
-        // 이메일 권한 검사 (ADMIN_EMAILS 목록 대조)
+        // 이메일 권한 검사 (ADMIN_EMAILS 목록 대조 - kfcmanck@gmail.com 반영 상태)
         if (ADMIN_EMAILS.includes(user.email)) {
             console.log("관리자 구글 로그인 성공:", user.email);
             closeLoginModal();
         } else {
-            // 이메일 불일치 시 강제 로그아웃
             await auth.signOut();
             alert(`관리자 권한이 없는 구글 계정입니다.\n(로그인 시도 계정: ${user.email})`);
             closeLoginModal();
@@ -427,7 +426,6 @@ loginForm.addEventListener("submit", async (e) => {
     try {
         const userCredential = await auth.signInWithEmailAndPassword(email, password);
         
-        // 이메일/PW 로그인 시에도 ADMIN_EMAILS 권한 검사 적용
         if (ADMIN_EMAILS.includes(userCredential.user.email)) {
             console.log("관리자 이메일 로그인 성공:", userCredential.user.email);
             closeLoginModal();
@@ -453,7 +451,6 @@ navLogoutBtn.addEventListener("click", async () => {
 
 // 관리자 로그인 상태에 따른 UI 제어 함수
 function updateUIForAuth(user) {
-    // 세션이 존재하고, 해당 계정이 관리자 이메일 목록에 포함되어 있을 때만 관리자 모드 On
     const isLoggedInAdmin = user && ADMIN_EMAILS.includes(user.email);
     
     if (isLoggedInAdmin) {
