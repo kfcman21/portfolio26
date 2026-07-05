@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 검색 엔진 최적화(SEO)를 위한 메타 데이터 설정 -->
+    <title>바이브코딩 포트폴리오 | 창의적인 교육과 소프트웨어의 만남</title>
+    <meta name="description" content="바이브코딩에서 개발한 10가지 혁신적인 코딩 교육 프로그램, 데스크톱 위젯, 로봇 제어 시스템, 백엔드 인프라 프로젝트를 소개합니다. 네이버 블로그와 연동하여 상세한 가이드를 제공합니다.">
+    <meta name="keywords" content="바이브코딩, 코딩교육, Electron, 파이썬, 햄스터로봇, NFC출석, 웹개발, 에듀테크">
+    
+    <!-- Open Graph (카카오톡, 페이스북 등 공유 시 노출되는 정보) -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="바이브코딩 포트폴리오">
+    <meta property="og:description" content="창의적인 코딩 교구 제어부터 유용한 바탕화면 위젯까지, 바이브코딩의 포트폴리오를 한눈에 확인하세요.">
+    <meta property="og:image" content="https://via.placeholder.com/1200x630/0f172a/ffffff?text=VibeCoding+Portfolio">
+    <meta property="og:url" content="https://blog.naver.com/your_naver_id"> <!-- 블로그 링크 등으로 변경 가능 -->
+
+    <!-- 현대적이고 고급스러운 느낌의 Google Fonts 로드 (Outfit: 제목용, Inter: 본문용) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- 스타일 및 폰트 아이콘 로드 (FontAwesome) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- 프로젝트 스타일시트 연결 -->
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+    <!-- 1. 배경 그래픽 효과 (미래지향적 분위기를 위한 오로라 조명 효과) -->
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+
+    <!-- 2. 네비게이션 헤더 영역 -->
+    <header class="header" id="main-header">
+        <div class="header-container">
+            <div class="logo">
+                <span class="logo-highlight">Vibe</span>Coding
+            </div>
+            <nav class="nav-menu">
+                <a href="#hero" class="nav-link">홈</a>
+                <a href="#portfolio" class="nav-link">포트폴리오</a>
+                <a href="https://blog.naver.com/your_naver_id" target="_blank" class="blog-btn" id="nav-blog-link">
+                    <i class="fa-solid fa-square-n text-naver"></i> 네이버 블로그 바로가기
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <!-- 3. 히어로 섹션 (소개 및 환영 영역) -->
+        <section id="hero" class="hero-section">
+            <div class="hero-content">
+                <span class="hero-badge"><i class="fa-solid fa-code"></i> 바이브코딩 실적 대시보드</span>
+                <h1 class="hero-title">상상을 코드로,<br><span class="gradient-text">현실을 움직이는 소프트웨어</span></h1>
+                <p class="hero-subtitle">
+                    데스크톱 위젯부터 피지컬 컴퓨팅 로봇 제어, 백엔드 서버 인프라까지.<br>
+                    바이브코딩이 차근차근 밟아온 창의적이고 실용적인 프로젝트들을 소개합니다.
+                </p>
+                <div class="hero-buttons">
+                    <a href="#portfolio" class="btn btn-primary">포트폴리오 탐색하기 <i class="fa-solid fa-arrow-down"></i></a>
+                    <a href="https://blog.naver.com/your_naver_id" target="_blank" class="btn btn-outline">블로그 글 연계 안내 <i class="fa-solid fa-square-rss"></i></a>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. 포트폴리오 대시보드 섹션 -->
+        <section id="portfolio" class="portfolio-section">
+            <div class="section-header">
+                <h2 class="section-title">📂 프로젝트 보드</h2>
+                <p class="section-desc">진행한 프로젝트의 목적에 따라 분류하여 모아볼 수 있습니다.</p>
+            </div>
+
+            <!-- 카테고리 필터 탭 -->
+            <div class="filter-container" id="filter-tabs">
+                <button class="filter-tab active" data-filter="all">전체보기</button>
+                <button class="filter-tab" data-filter="widget">데스크톱 위젯</button>
+                <button class="filter-tab" data-filter="hardware">로봇 & AI (교구)</button>
+                <button class="filter-tab" data-filter="backend">에듀테크 & 백엔드</button>
+                <button class="filter-tab" data-filter="education">교육 자료</button>
+            </div>
+
+            <!-- 동적으로 프로젝트 카드가 생성될 컨테이너 -->
+            <div class="projects-grid" id="projects-grid">
+                <!-- Javascript (index.js)에서 동적으로 생성하여 여기에 삽입합니다. -->
+            </div>
+        </section>
+    </main>
+
+    <!-- 5. 풋터 영역 -->
+    <footer class="footer">
+        <div class="footer-container">
+            <p class="footer-copy">&copy; 2026 VibeCoding. All rights reserved.</p>
+            <p class="footer-info">본 포트폴리오 사이트는 바이브코딩의 교육 및 개발 프로젝트 아카이브용으로 제작되었습니다.</p>
+        </div>
+    </footer>
+
+    <!-- 6. 프로젝트 상세 정보 모달 (Modal) 팝업 창 -->
+    <div class="modal" id="project-modal" aria-hidden="true">
+        <div class="modal-backdrop" id="modal-close-backdrop"></div>
+        <div class="modal-content">
+            <!-- 모달 닫기 버튼 -->
+            <button class="modal-close" id="modal-close-btn" aria-label="닫기">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            
+            <!-- 모달 내부 상세 내용 영역 -->
+            <div class="modal-body">
+                <div class="modal-header-info">
+                    <span class="modal-category" id="modal-category">카테고리</span>
+                    <h3 class="modal-title" id="modal-title">프로젝트 제목</h3>
+                    <div class="modal-tags" id="modal-tags">
+                        <!-- 태그 목록이 여기에 들어갑니다. -->
+                    </div>
+                </div>
+                
+                <div class="modal-description">
+                    <h4>💡 프로젝트 요약</h4>
+                    <p id="modal-summary">여기에 프로젝트 요약이 표시됩니다.</p>
+                    
+                    <h4>🛠️ 사용 기술 및 아키텍처</h4>
+                    <p id="modal-tech">여기에 기술 스택 및 연동 정보가 표시됩니다.</p>
+
+                    <h4>📘 상세 개발 이야기</h4>
+                    <p id="modal-details">여기에 파일 구조 분석 및 상세 개발 비하인드 내용이 표시됩니다.</p>
+                </div>
+                
+                <!-- 하단 액션 버튼들 -->
+                <div class="modal-actions">
+                    <a href="#" target="_blank" class="btn btn-naver" id="modal-blog-link">
+                        <i class="fa-solid fa-square-n text-naver"></i> 네이버 블로그 포스팅 읽기
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. 프로젝트 실행에 필요한 자바스크립트 소스 연결 -->
+    <script src="index.js"></script>
+</body>
+</html>
