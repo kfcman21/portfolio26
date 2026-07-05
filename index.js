@@ -1,27 +1,27 @@
 /**
  * ==========================================================================
- * 📂 VibeCoding Portfolio - Javascript Core (Supabase Integrated)
+ * 📂 VibeCoding Portfolio - Javascript Core (Supabase Client Fixed)
  * --------------------------------------------------------------------------
- * 이 파일은 Supabase를 연동하여 포트폴리오 데이터를 불러오고, 관리자 로그인 상태를 감지하며,
- * 관리자 로그인 시 브라우저에서 직접 블로그 주소를 실시간으로 저장 및 수정할 수 있게 해줍니다.
+ * 이 파일은 Supabase를 연동하여 포트폴리오 데이터를 불러오고 관리자 로그인을 처리합니다.
  * 
- * 💡 [보안 및 설정 가이드]
- * 1. 상단의 supabaseUrl과 supabaseKey를 사용자의 Supabase 프로젝트 정보로 수정하세요.
- * 2. Supabase DB와 연동이 완료되기 전에도 화면이 깨지지 않도록 로컬 백업 데이터가 자동으로 작동합니다.
+ * 🛠️ [버그 수정 내용]
+ * Supabase V2 CDN 라이브러리가 로드되면서 전역 스코프에 'supabase' 식별자가 이미
+ * 선언되어 충돌 오류(Identifier already been declared)를 일으키던 문제를 해결하기 위해,
+ * 자바스크립트 내부의 클라이언트 인스턴스 변수명을 'supabaseClient'로 전면 교체하였습니다.
  * ==========================================================================
  */
 
 // 1. ⚙️ Supabase 설정 (사용자의 프로젝트 정보를 입력해 주세요!)
-const supabaseUrl = 'YOUR_SUPABASE_URL'; // 👈 여기에 Supabase URL 입력 (예: https://xxxx.supabase.co)
+const supabaseUrl = 'YOUR_SUPABASE_URL'; // 👈기에 Supabase URL 입력 (예: https://xxxx.supabase.co)
 const supabaseKey = 'YOUR_SUPABASE_ANON_KEY'; // 👈 여기에 Supabase Anon Key 입력
 
-let supabase = null;
+let supabaseClient = null; // 🛠️ 전역 객체와의 충돌 방지를 위해 변수명 변경 (supabase -> supabaseClient)
 let projects = []; // DB 또는 백업 데이터가 채워질 프로젝트 목록 배열
 let currentEditingProjectId = null; // 현재 상세 모달창에 열려있는 프로젝트 ID
 
-// Supabase 라이브러리가 로드되었고 키가 입력되었는지 확인 후 초기화
-if (typeof supabasejs !== 'undefined' && supabaseUrl !== 'YOUR_SUPABASE_URL') {
-    supabase = supabasejs.createClient(supabaseUrl, supabaseKey);
+// Supabase CDN v2 라이브러리가 전역 변수 'supabase'를 제공하므로 이를 이용해 초기화
+if (typeof supabase !== 'undefined' && supabaseUrl !== 'YOUR_SUPABASE_URL') {
+    supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 }
 
 // 2. 🗄️ Supabase 연결이 안 되었을 때 사용할 로컬 백업 데이터 (안전장치)
@@ -197,7 +197,7 @@ const adminEditStatus = document.getElementById("admin-edit-status");
 // 4. 🗃️ DB로부터 프로젝트 데이터 조회 함수
 async function fetchProjects() {
     // Supabase가 초기화되지 않았거나 연결이 불가능하면 백업 데이터 사용
-    if (!supabase) {
+    if (!supabaseClient) {
         console.warn("Supabase가 연결되지 않았습니다. 로컬 백업 데이터를 사용합니다.");
         projects = [...localBackupProjects];
         renderProjects("all");
@@ -205,7 +205,7 @@ async function fetchProjects() {
     }
     
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('portfolio_projects')
             .select('*')
             .order('id', { ascending: true });
@@ -213,7 +213,6 @@ async function fetchProjects() {
         if (error) throw error;
         
         if (data && data.length > 0) {
-            // DB 테이블 컬럼명 매핑 (snake_case -> camelCase)
             projects = data.map(item => ({
                 id: item.id,
                 title: item.title,
@@ -223,11 +222,10 @@ async function fetchProjects() {
                 summary: item.summary,
                 tech: item.tech,
                 details: item.details,
-                blogUrl: item.blog_url || "" // DB 컬럼: blog_url
+                blogUrl: item.blog_url || ""
             }));
             console.log("DB로부터 데이터를 정상적으로 불러왔습니다.");
         } else {
-            // 데이터가 비었으면 백업 사용
             projects = [...localBackupProjects];
         }
     } catch (e) {
@@ -250,7 +248,6 @@ function renderProjects(filterCategory = "all") {
         const card = document.createElement("div");
         card.classList.add("project-card");
         
-        // 블로그 링크 존재 여부에 따라 버튼 렌더링
         const blogButtonHtml = project.blogUrl && project.blogUrl.trim() !== ""
             ? `<a href="${project.blogUrl}" target="_blank" class="card-btn card-btn-blog" id="btn-blog-${project.id}">
                    <i class="fa-solid fa-square-n text-naver"></i> 블로그 보기
@@ -308,7 +305,7 @@ window.openProjectModal = function(projectId) {
     const project = projects.find(p => p.id === projectId);
     if (!project) return;
     
-    currentEditingProjectId = projectId; // 현재 수정할 프로젝트 ID 추적
+    currentEditingProjectId = projectId;
     
     modalCategory.textContent = getCategoryName(project.category);
     modalTitle.textContent = project.title;
@@ -316,7 +313,6 @@ window.openProjectModal = function(projectId) {
     modalTech.textContent = project.tech;
     modalDetails.textContent = project.details;
     
-    // 네이버 블로그 링크 바인딩
     if (project.blogUrl && project.blogUrl.trim() !== "") {
         modalBlogLink.href = project.blogUrl;
         modalBlogLink.style.display = "inline-flex";
@@ -325,11 +321,9 @@ window.openProjectModal = function(projectId) {
         modalBlogLink.style.display = "none";
     }
     
-    // 관리자 전용 URL 입력 필드 값 초기화
     adminBlogUrlInput.value = project.blogUrl;
-    adminEditStatus.textContent = ""; // 이전 알림 메세지 비우기
+    adminEditStatus.textContent = "";
     
-    // 태그 리스트 생성
     modalTags.innerHTML = project.tags.map(tag => `<span class="tag">#${tag}</span>`).join('');
     
     modal.classList.add("active");
@@ -376,14 +370,14 @@ loginForm.addEventListener("submit", async (e) => {
     const email = loginEmailInput.value.trim();
     const password = loginPasswordInput.value;
     
-    if (!supabase) {
+    if (!supabaseClient) {
         loginErrorMsg.textContent = "Supabase가 올바르게 설정되지 않았습니다. 개발자 도구 콘솔을 확인해 주세요.";
         loginErrorMsg.style.display = "block";
         return;
     }
     
     // Supabase Auth 로그인 요청
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
         email: email,
         password: password
     });
@@ -399,8 +393,8 @@ loginForm.addEventListener("submit", async (e) => {
 
 // 로그아웃 처리
 navLogoutBtn.addEventListener("click", async () => {
-    if (supabase) {
-        await supabase.auth.signOut();
+    if (supabaseClient) {
+        await supabaseClient.auth.signOut();
         console.log("로그아웃 되었습니다.");
     }
 });
@@ -410,19 +404,15 @@ function updateUIForAuth(session) {
     const isLoggedIn = !!session;
     
     if (isLoggedIn) {
-        // 로그인 상태
         navLoginBtn.style.display = "none";
         navLogoutBtn.style.display = "inline-flex";
         
-        // 관리자 편집 요소 노출
         adminModeIndicator.style.display = "inline-flex";
         adminUrlEditContainer.style.display = "block";
     } else {
-        // 로그아웃 상태
         navLoginBtn.style.display = "inline-flex";
         navLogoutBtn.style.display = "none";
         
-        // 관리자 편집 요소 숨김
         adminModeIndicator.style.display = "none";
         adminUrlEditContainer.style.display = "none";
     }
@@ -430,7 +420,7 @@ function updateUIForAuth(session) {
 
 // 9. 💾 실시간 블로그 주소 저장 기능
 adminSaveBtn.addEventListener("click", async () => {
-    if (!supabase || !currentEditingProjectId) return;
+    if (!supabaseClient || !currentEditingProjectId) return;
     
     adminEditStatus.className = "edit-status-msg";
     adminEditStatus.textContent = "저장 중...";
@@ -438,26 +428,22 @@ adminSaveBtn.addEventListener("click", async () => {
     const newUrl = adminBlogUrlInput.value.trim();
     
     try {
-        // Supabase DB 업데이트 요청
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('portfolio_projects')
-            .update({ blog_url: newUrl }) // DB 컬럼: blog_url
+            .update({ blog_url: newUrl })
             .eq('id', currentEditingProjectId);
             
         if (error) throw error;
         
-        // 1. 메모리 상의 projects 배열 값 업데이트
         const targetProject = projects.find(p => p.id === currentEditingProjectId);
         if (targetProject) {
             targetProject.blogUrl = newUrl;
         }
         
-        // 2. 화면에 실시간 변경 카드 리렌더링
         const activeTab = document.querySelector(".filter-tab.active");
         const currentFilter = activeTab ? activeTab.getAttribute("data-filter") : "all";
         renderProjects(currentFilter);
         
-        // 3. 모달 내의 블로그 버튼 주소 업데이트 및 노출 여부 조절
         if (newUrl !== "") {
             modalBlogLink.href = newUrl;
             modalBlogLink.style.display = "inline-flex";
@@ -466,7 +452,6 @@ adminSaveBtn.addEventListener("click", async () => {
             modalBlogLink.style.display = "none";
         }
         
-        // 성공 메세지 출력
         adminEditStatus.className = "edit-status-msg edit-status-success";
         adminEditStatus.innerHTML = "<i class='fa-solid fa-check'></i> 성공적으로 DB에 저장되었습니다!";
         
@@ -487,19 +472,16 @@ window.addEventListener("keydown", (e) => {
 
 // 10. 🚀 페이지 초기 로드 시 동작 실행
 document.addEventListener("DOMContentLoaded", () => {
-    // Supabase 로그인 상태 리스너 구독
-    if (supabase) {
-        supabase.auth.onAuthStateChange((event, session) => {
+    if (supabaseClient) {
+        supabaseClient.auth.onAuthStateChange((event, session) => {
             console.log(`인증 이벤트 감지: ${event}`);
             updateUIForAuth(session);
         });
         
-        // 현재 세션 상태 확인
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        supabaseClient.auth.getSession().then(({ data: { session } }) => {
             updateUIForAuth(session);
         });
     }
     
-    // DB 데이터 로드
     fetchProjects();
 });
